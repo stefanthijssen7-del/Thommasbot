@@ -25,12 +25,18 @@ export default {
   name: Events.MessageCreate,
   async execute(message, client) {
     try {
-      if (message.author.bot || !message.guild) return;
+      if (!message.guild) return;
+
+      if (message.author.id === client.user?.id) return;
 
       logger.debug(`Message received from ${message.author.tag}: ${message.content}`);
 
       const countingProcessed = await handleCountingGame(message, client);
       if (countingProcessed) {
+        return;
+      }
+
+      if (message.author.bot) {
         return;
       }
 
@@ -135,12 +141,18 @@ async function handleCountingGame(message, client) {
       return false;
     }
 
+    const permissions = message.channel.permissionsFor(client.user);
+    if (!permissions?.has('AddReactions')) {
+      logger.warn(`Missing AddReactions permission in ${message.channel.id}`);
+      return true;
+    }
+
     const content = message.content.trim();
     const validCount = isValidCountingMessage(content, config);
     const invalidAttempt = !validCount || message.author.id === config.lastUserId;
 
     if (invalidAttempt) {
-      await message.react('❌');
+      await message.react('❌').catch(() => {});
 
       await saveCountingGameConfig(client, message.guild.id, {
         ...config,
@@ -161,7 +173,7 @@ async function handleCountingGame(message, client) {
     }
 
     await recordCorrectCount(client, message.guild.id, message.author.id);
-    await message.react('✅');
+    await message.react('✅').catch(() => {});
 
     return true;
   } catch (error) {
