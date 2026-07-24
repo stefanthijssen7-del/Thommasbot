@@ -25,12 +25,18 @@ export default {
   name: Events.MessageCreate,
   async execute(message, client) {
     try {
-      if (message.author.bot || !message.guild) return;
+      if (!message.guild) return;
+
+      if (message.author.id === client.user?.id) return;
 
       logger.debug(`Message received from ${message.author.tag}: ${message.content}`);
 
       const countingProcessed = await handleCountingGame(message, client);
       if (countingProcessed) {
+        return;
+      }
+
+      if (message.author.bot) {
         return;
       }
 
@@ -131,7 +137,7 @@ async function handleCountingGame(message, client) {
   try {
     const config = await getCountingGameConfig(client, message.guild.id);
 
-    if (!config.enabled || !config.channelId || message.channel.id !== config.channelId) {
+    if (!config?.enabled || !config?.channelId || message.channel.id !== config.channelId) {
       return false;
     }
 
